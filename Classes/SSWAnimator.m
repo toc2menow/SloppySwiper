@@ -19,7 +19,7 @@ UIViewAnimationOptions const SSWNavigationTransitionCurve = 7 << 16;
     UIBezierPath *shadowPath = [UIBezierPath bezierPathWithRect:shadowRect];
     self.layer.shadowPath = [shadowPath CGPath];
     self.layer.shadowOpacity = 0.2f;
-
+    
     // fade shadow during transition
     CGFloat toValue = 0.0f;
     CABasicAnimation *animation = [CABasicAnimation animationWithKeyPath:@"shadowOpacity"];
@@ -37,6 +37,16 @@ UIViewAnimationOptions const SSWNavigationTransitionCurve = 7 << 16;
 
 @implementation SSWAnimator
 
+- (UIImage *)screenShot:(UIView *)view {
+    UIGraphicsBeginImageContextWithOptions(view.bounds.size, YES, [[UIScreen mainScreen] scale]);
+    // Use presentationlayer to capture gif
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    [view.layer renderInContext:context];
+    
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    return image;
+}
+
 - (NSTimeInterval)transitionDuration:(id <UIViewControllerContextTransitioning>)transitionContext
 {
     // Approximated lengths of the default animations.
@@ -48,38 +58,48 @@ UIViewAnimationOptions const SSWNavigationTransitionCurve = 7 << 16;
 {
     UIViewController *toViewController = [transitionContext viewControllerForKey:UITransitionContextToViewControllerKey];
     UIViewController *fromViewController = [transitionContext viewControllerForKey:UITransitionContextFromViewControllerKey];
-    [[transitionContext containerView] insertSubview:toViewController.view belowSubview:fromViewController.view];
-
-    // parallax effect; the offset matches the one used in the pop animation in iOS 7.1
-    CGFloat toViewControllerXTranslation = - CGRectGetWidth([transitionContext containerView].bounds) * 0.3f;
-    toViewController.view.transform = CGAffineTransformMakeTranslation(toViewControllerXTranslation, 0);
-
-    // add a shadow on the left side of the frontmost view controller
-    [fromViewController.view addLeftSideShadowWithFading];
-    BOOL previousClipsToBounds = fromViewController.view.clipsToBounds;
-    fromViewController.view.clipsToBounds = NO;
-
-    // in the default transition the view controller below is a little dimmer than the frontmost one
-    UIView *dimmingView = [[UIView alloc] initWithFrame:toViewController.view.bounds];
-    dimmingView.backgroundColor = [UIColor colorWithWhite:0.0f alpha:0.1f];
-    [toViewController.view addSubview:dimmingView];
-
-    // Uses linear curve for an interactive transition, so the view follows the finger. Otherwise, uses a navigation transition curve.
-    UIViewAnimationOptions curveOption = [transitionContext isInteractive] ? UIViewAnimationOptionCurveLinear : SSWNavigationTransitionCurve;
-
-    [UIView animateWithDuration:[self transitionDuration:transitionContext] delay:0 options:UIViewAnimationOptionTransitionNone | curveOption animations:^{
-        toViewController.view.transform = CGAffineTransformIdentity;
-        fromViewController.view.transform = CGAffineTransformMakeTranslation(toViewController.view.frame.size.width, 0);
-        dimmingView.alpha = 0.0f;
-
+    UIView *toView = toViewController.view;
+    //    UIView *fromView = fromViewController.view;
+    UIImageView *fromView = [[UIImageView alloc] initWithImage:[self screenShot:fromViewController.view]];
+    
+    UITabBarController *tabBarController = toViewController.tabBarController;
+    UIView *tabbarView = tabBarController.tabBar;
+    
+    CGRect toFrame = toView.frame;
+    CGRect tabbarFrame = tabbarView.frame;
+    CGRect fromFrame = fromView.frame;
+    BOOL toNavigationBarHidden = toViewController.navigationController.navigationBarHidden;
+    BOOL fromNavigationBarHidden = fromViewController.navigationController.navigationBarHidden;
+    if (toNavigationBarHidden != fromNavigationBarHidden) {
+        if (toNavigationBarHidden) {
+            toFrame.origin.y += 64;
+            toFrame.size.height -= 64;
+            toView.frame = toFrame;
+        } else {
+            toFrame.origin.y -= 64;
+            toFrame.size.height += 64;
+            toView.frame = toFrame;
+        }
+    }
+    
+    toFrame.origin.x = -toFrame.size.width * 0.25;
+    toView.frame = toFrame;
+    
+    tabbarView.frame = CGRectMake(toFrame.origin.x, tabbarFrame.origin.y, tabbarFrame.size.width, tabbarFrame.size.height);
+    [[transitionContext containerView] addSubview:toView];
+    [[transitionContext containerView] addSubview:tabbarView];
+    [[transitionContext containerView] addSubview:fromView];
+    
+    [UIView animateWithDuration:0.25f animations:^{
+        toView.frame = CGRectMake(0, toFrame.origin.y, toFrame.size.width, toFrame.size.height);
+        fromView.frame = CGRectMake(toFrame.size.width, fromFrame.origin.y, fromFrame.size.width, fromFrame.size.height);
+        tabbarView.frame = CGRectMake(0, tabbarFrame.origin.y, tabbarFrame.size.width, tabbarFrame.size.height);
     } completion:^(BOOL finished) {
-        [dimmingView removeFromSuperview];
-        fromViewController.view.transform = CGAffineTransformIdentity;
-        fromViewController.view.clipsToBounds = previousClipsToBounds;
         [transitionContext completeTransition:![transitionContext transitionWasCancelled]];
-
+        tabbarView.frame = CGRectMake(0, tabbarFrame.origin.y, tabbarFrame.size.width, tabbarFrame.size.height);
+        [tabBarController.view addSubview:tabbarView];
+        [fromView removeFromSuperview];
     }];
-
     self.toViewController = toViewController;
 }
 
