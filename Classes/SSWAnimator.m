@@ -61,6 +61,7 @@ UIViewAnimationOptions const SSWNavigationTransitionCurve = 7 << 16;
     UIView *toView = toViewController.view;
     //    UIView *fromView = fromViewController.view;
     UIImageView *fromView = [[UIImageView alloc] initWithImage:[self screenShot:fromViewController.view]];
+    [fromView addLeftSideShadowWithFading];
     
     UITabBarController *tabBarController = toViewController.tabBarController;
     UIView *tabbarView = tabBarController.tabBar;
