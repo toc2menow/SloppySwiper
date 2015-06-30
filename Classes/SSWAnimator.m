@@ -71,7 +71,9 @@ UIViewAnimationOptions const SSWNavigationTransitionCurve = 7 << 16;
     CGRect fromFrame = fromView.frame;
     BOOL toNavigationBarHidden = toViewController.navigationController.navigationBarHidden;
     BOOL fromNavigationBarHidden = fromViewController.navigationController.navigationBarHidden;
-    if (toNavigationBarHidden != fromNavigationBarHidden) {
+    if (toViewController.navigationController &&
+        fromViewController.navigationController &&
+        toNavigationBarHidden != fromNavigationBarHidden) {
         if (toNavigationBarHidden) {
             toFrame.origin.y += 64;
             toFrame.size.height -= 64;
